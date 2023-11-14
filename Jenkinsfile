@@ -1,28 +1,35 @@
 pipeline {
     agent any
-
+ options {
+        // This is required if you want to clean before build
+        skipDefaultCheckout(true)
+    }
     stages {
-        stage('Checkout') {
+        stage('Clean Workspace before build') {
             steps {
-                git branch: 'master', url: 'https://github.com/OWASP/Vulnerable-Web-Application.git'
+                // Clean before build
+                cleanWs()
             }
         }
-
-        stage('Code Quality Check via SonarQube') {
+        stage('Code Quality Check Via SonarQube') {
             steps {
-                script {
-                    def scannerHome = tool 'SonarQube'
-                    withSonarQubeEnv('SonarQube') {
-                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=OWASP -Dsonar.sources=. -Dsonar.host.url=http://sonarqube:9000/ -Dsonar.token=sqp_1e4aba23e6f14b746ac1edaceb67304342f2a763"
+                    script {
+                        def scannerHome = tool 'SonarQube';
+                        withSonarQubeEnv('SonarQube') {
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=​ OWASP -Dsonar.sources=."
                     }
                 }
             }
         }
+  stage('OWASP Dependency-Check Vulnerabilities') {
+   steps {
+    dependencyCheck additionalArguments: '--format HTML --format XML', odcInstallation: 'OWASP Dependency-Check Vulnerabilities'
+   }
+  }
     }
-
-    post {
-        always {
-            recordIssues enabledForFailure: true, tool: SonarQube()
-        }
-    }
+ post {
+  success {
+   dependencyCheckPublisher pattern: 'dependency-check-report.xml'
+  }
+ }
 }
